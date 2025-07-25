@@ -15,8 +15,10 @@ Applications include provision of:
 
 ### OBJECTIVES
 
-1)To Identify factors that have impact on food prices 
+1)To Identify factors that have impact on food prices. 
+
 2)To develop a predictive model that uses above identified factors to predict food prices 2-3 months in advance.
+
 3)To create a deployment model that enables target audiences such as farmers effectively and efficiently practise their trade.
 
 ## DATA UNDERSTANDING AND ANALYSIS
@@ -56,11 +58,15 @@ The results based on regression metrics analysis are as follows:
 
 Model Comparison:
 
-              Model      MAE     RMSE     R2
-1      RandomForest   385.97   801.86  0.921
-2  GradientBoosting   957.77  1412.12  0.754
-0         NeuralNet  1561.81  2232.69  0.384
-3             Ridge  2048.13  2720.92  0.086
+                Model               MAE        RMSE       R2
+
+                RandomForest       385.97     801.86     0.921
+
+                GradientBoosting   957.77    1412.12     0.754
+
+                NeuralNet          1561.81   2232.69     0.384
+
+                Ridge              2048.13   2720.92     0.086
 
 Visualization of Model R2 Scores
 
