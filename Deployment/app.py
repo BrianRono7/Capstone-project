@@ -6,7 +6,7 @@ import joblib
 from predictor import recommend_crop_user_friendly, commodity_dict, market_dict, region_dict, county_dict
 
 # Load sample data for EDA
-df = pd.read_csv("../Development/merged_data.csv")
+df = pd.read_csv("merged_data.csv")
 
 # -------------- Header ----------------
 st.set_page_config(page_title="🇰🇪 Food Price Prediction App", layout="wide")
