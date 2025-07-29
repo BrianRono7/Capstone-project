@@ -5,16 +5,15 @@ import joblib
 import gdown
 import os
 
-from predictor import recommend_crop_user_friendly, commodity_dict, market_dict, region_dict, county_dict
+from predictor import recommend_crop_user_friendly
+from mappings import commodity_dict, market_dict, region_dict, county_dict
 
 # ------------------ Data Load ------------------
 
-# Google Drive CSV file setup
 file_id = "146Y6-nKiuSnFoI8BKArR8153ZWvpnYgY"
 url = f"https://drive.google.com/uc?id={file_id}"
 output = "merged_data.csv"
 
-# Download only if not already present
 if not os.path.exists(output):
     st.info("📥 Downloading dataset...")
     try:
@@ -23,7 +22,6 @@ if not os.path.exists(output):
         st.error(f"❌ Download failed: {e}")
         st.stop()
 
-# Load the dataset
 try:
     df = pd.read_csv(output)
     st.success("✅ Dataset loaded successfully!")
@@ -31,15 +29,13 @@ except Exception as e:
     st.error(f"❌ Failed to read the CSV file: {e}")
     st.stop()
 
-# -------------- Header ----------------
+# ------------------ App UI ------------------
+
 st.set_page_config(page_title="🇰🇪 Food Price Prediction App", layout="wide")
-
 st.title("🌾 Kenya Food Price Spike Early Warning System")
-st.markdown("""
-This intelligent system uses **machine learning and weather data** to forecast food prices across Kenyan markets.
-""")
+st.markdown("This intelligent system uses **machine learning and weather data** to forecast food prices across Kenyan markets.")
 
-# -------------- Summary Dashboard ----------------
+# Summary
 with st.container():
     st.subheader("📊 Dataset Summary")
     col1, col2, col3, col4 = st.columns(4)
@@ -47,10 +43,9 @@ with st.container():
     col2.metric("Commodities", df['commodity'].nunique())
     col3.metric("Regions", df['Region'].nunique())
     col4.metric("Counties", df['County'].nunique())
-
     st.dataframe(df.sample(5), use_container_width=True)
 
-# -------------- Visuals ----------------
+# Charts
 with st.container():
     st.subheader("🌧️ Average Rainfall by County")
     avg_rainfall = df.groupby('County')['rainfall_mm'].mean().sort_values(ascending=False)
@@ -60,7 +55,8 @@ with st.container():
     avg_prices = df.groupby('commodity')['price'].mean().sort_values(ascending=False)
     st.bar_chart(avg_prices.head(10))
 
-# -------------- Sidebar for Prediction ----------------
+# ------------------ Prediction Sidebar ------------------
+
 st.sidebar.header("📌 Predict Crop Price")
 
 rainfall = st.sidebar.number_input("Rainfall (mm)", value=0.0)
@@ -73,18 +69,25 @@ region_name = st.sidebar.selectbox("Region", list(region_dict.keys()))
 county_name = st.sidebar.selectbox("County", list(county_dict.keys()))
 
 if st.sidebar.button("🚀 Predict Price"):
-    prediction = recommend_crop_user_friendly(
-        rainfall,
-        month,
-        year,
-        commodity_name,
-        market_name,
-        region_name,
-        county_name
-    )
-    st.sidebar.success(f"💰 Predicted Price: KES {prediction:.2f}")
+    try:
+        prediction = recommend_crop_user_friendly(
+            rainfall,
+            month,
+            year,
+            commodity_name,
+            market_name,
+            region_name,
+            county_name
+        )
+        if prediction is not None:
+            st.sidebar.success(f"💰 Predicted Price: KES {prediction:.2f}")
+        else:
+            st.sidebar.warning("⚠️ Prediction failed. Check input values or model.")
+    except Exception as e:
+        st.sidebar.error(f"❌ Error: {e}")
 
-# -------------- Current Conditions ----------------
+# ------------------ Current Data ------------------
+
 with st.expander("📌 Current Rainfall & Market Prices (Sample)"):
     current = df.sort_values("date_x", ascending=False).head(10)
     st.dataframe(current[['commodity', 'market_x', 'County', 'rainfall_mm', 'price']], use_container_width=True)
