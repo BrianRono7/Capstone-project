@@ -3,28 +3,25 @@ import pandas as pd
 import numpy as np
 import gdown
 import os
+import requests
 import json
 import folium
 from streamlit_folium import st_folium
 
 from predictor import recommend_crop_user_friendly
-from mappings import (
-    commodity_dict, market_dict, region_dict, county_dict, county_to_city
-)
+from mappings import commodity_dict, market_dict, region_dict, county_dict, county_to_city
 from weather import get_forecasted_rainfall
 
-# ---------------------- CONFIGURATION ----------------------
+# ---------------------- PAGE CONFIG ----------------------
 
 st.set_page_config(
     page_title="🇰🇪 Kenya Food Price Spike Early Warning System",
     layout="wide"
 )
 
-# ---------------------- TITLE ----------------------
-
 st.title("🌾 Kenya Food Price Spike Early Warning System")
 st.markdown("""
-This intelligent dashboard leverages **machine learning** and **real-time weather data** to forecast food prices across Kenyan markets.
+This dashboard leverages **machine learning** and **real-time weather data** to forecast food prices across Kenyan markets.
 """)
 
 # ---------------------- LOAD DATASET ----------------------
@@ -61,7 +58,7 @@ with st.container():
     st.markdown("### 🔍 Sample of Dataset")
     st.dataframe(df.sample(5), use_container_width=True)
 
-# ---------------------- VISUALIZATIONS ----------------------
+# ---------------------- VISUAL CHARTS ----------------------
 
 with st.container():
     st.subheader("🌧️ Average Rainfall by County")
@@ -72,7 +69,7 @@ with st.container():
     avg_prices = df.groupby('commodity')['price'].mean().sort_values(ascending=False)
     st.bar_chart(avg_prices.head(10))
 
-# ---------------------- SIDEBAR – PREDICTION INPUTS ----------------------
+# ---------------------- SIDEBAR PREDICTION ----------------------
 
 st.sidebar.header("📌 Food Price Prediction")
 
@@ -84,7 +81,7 @@ market_name = st.sidebar.selectbox("🏪 Market", list(market_dict.keys()))
 region_name = st.sidebar.selectbox("🗺️ Region", list(region_dict.keys()))
 county_name = st.sidebar.selectbox("🏛 County", list(county_dict.keys()))
 
-# ---------------------- AUTOMATED WEATHER FORECAST ----------------------
+# ---------------------- FETCH FORECASTED RAINFALL ----------------------
 
 city = county_to_city.get(county_name)
 rainfall = 0.0
@@ -99,7 +96,7 @@ if city:
 else:
     st.sidebar.warning("⚠️ No city mapping found. Using 0 mm rainfall.")
 
-# ---------------------- PREDICTION OUTPUT ----------------------
+# ---------------------- PRICE PREDICTION ----------------------
 
 if st.sidebar.button("🚀 Predict Price"):
     try:
@@ -115,43 +112,53 @@ if st.sidebar.button("🚀 Predict Price"):
     except Exception as e:
         st.sidebar.error(f"❌ Error: {e}")
 
+# ---------------------- RUNTIME GEOJSON MAP ----------------------
+
+@st.cache_data(show_spinner="📡 Downloading Kenya GeoJSON Map...")
+def download_geojson():
+    gdrive_url = "https://drive.google.com/uc?id=16jVufaCOLjjK18Q2akUzo7ylqP0zMjvW"
+    path = "kenya_counties.geojson"
+    if not os.path.exists(path):
+        response = requests.get(gdrive_url)
+        if response.status_code == 200:
+            with open(path, 'wb') as f:
+                f.write(response.content)
+        else:
+            st.error("❌ GeoJSON download failed.")
+            return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        st.error(f"❌ Error reading GeoJSON: {e}")
+        return None
+
+kenya_geojson = download_geojson()
+
+if kenya_geojson:
+    st.subheader("🗺️ Kenya Rainfall Forecast Map")
+
+    rainfall_data = df.groupby("County")["rainfall_mm"].mean().reset_index()
+
+    m = folium.Map(location=[0.0236, 37.9062], zoom_start=6)
+
+    folium.Choropleth(
+        geo_data=kenya_geojson,
+        data=rainfall_data,
+        columns=["County", "rainfall_mm"],
+        key_on="feature.properties.COUNTY",
+        fill_color="YlGnBu",
+        fill_opacity=0.7,
+        line_opacity=0.2,
+        legend_name="Avg Rainfall (mm)"
+    ).add_to(m)
+
+    st_folium(m, height=500, width=800)
+else:
+    st.warning("🛑 Kenya map could not be rendered due to GeoJSON loading issue.")
+
 # ---------------------- CURRENT SNAPSHOT ----------------------
 
 with st.expander("📌 Current Rainfall & Market Prices (Sample)"):
     current = df.sort_values("date_x", ascending=False).head(10)
     st.dataframe(current[['commodity', 'market_x', 'County', 'rainfall_mm', 'price']], use_container_width=True)
-
-# ---------------------- FORECAST MAP ----------------------
-
-st.subheader("🗺️ Kenya Forecast Rainfall Map")
-
-try:
-    with open("kenya_counties.geojson", "r") as f:
-        geojson_data = json.load(f)
-
-    # Fetch rainfall per county from OpenWeather API
-    forecast_data = {
-        county: get_forecasted_rainfall(city)
-        for county, city in county_to_city.items()
-    }
-
-    forecast_df = pd.DataFrame(forecast_data.items(), columns=["County", "Rainfall"])
-
-    # Create folium map
-    m = folium.Map(location=[0.0236, 37.9062], zoom_start=6)
-
-    folium.Choropleth(
-        geo_data=geojson_data,
-        data=forecast_df,
-        columns=["County", "Rainfall"],
-        key_on="feature.properties.COUNTY",
-        fill_color="YlGnBu",
-        fill_opacity=0.7,
-        line_opacity=0.2,
-        legend_name="Forecast Rainfall (mm)",
-    ).add_to(m)
-
-    st_folium(m, width=800, height=600)
-
-except Exception as e:
-    st.error(f"❌ Could not render Kenya map: {e}")
