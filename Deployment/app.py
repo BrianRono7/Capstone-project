@@ -2,11 +2,34 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import gdown
+import os
 
 from predictor import recommend_crop_user_friendly, commodity_dict, market_dict, region_dict, county_dict
 
-# Load sample data for EDA
-df = pd.read_csv("merged_data.csv")
+# ------------------ Data Load ------------------
+
+# Google Drive CSV file setup
+file_id = "146Y6-nKiuSnFoI8BKArR8153ZWvpnYgY"
+url = f"https://drive.google.com/uc?id={file_id}"
+output = "merged_data.csv"
+
+# Download only if not already present
+if not os.path.exists(output):
+    st.info("📥 Downloading dataset...")
+    try:
+        gdown.download(url, output, quiet=False)
+    except Exception as e:
+        st.error(f"❌ Download failed: {e}")
+        st.stop()
+
+# Load the dataset
+try:
+    df = pd.read_csv(output)
+    st.success("✅ Dataset loaded successfully!")
+except Exception as e:
+    st.error(f"❌ Failed to read the CSV file: {e}")
+    st.stop()
 
 # -------------- Header ----------------
 st.set_page_config(page_title="🇰🇪 Food Price Prediction App", layout="wide")
