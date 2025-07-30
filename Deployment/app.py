@@ -5,6 +5,7 @@ import gdown
 import os
 import requests
 import json
+import datetime
 import folium
 from streamlit_folium import st_folium
 
@@ -73,8 +74,9 @@ with st.container():
 
 st.sidebar.header("📌 Food Price Prediction")
 
-month = st.sidebar.selectbox("📅 Month", list(range(1, 13)), index=6)
-year = st.sidebar.number_input("📆 Year", value=2025)
+selected_date = st.sidebar.date_input("📅 Select Date", datetime.date.today())
+month = selected_date.month
+year = selected_date.year
 
 commodity_name = st.sidebar.selectbox("🌾 Commodity", list(commodity_dict.keys()))
 market_name = st.sidebar.selectbox("🏪 Market", list(market_dict.keys()))
@@ -119,6 +121,7 @@ def download_geojson():
     gdrive_url = "https://drive.google.com/uc?id=16jVufaCOLjjK18Q2akUzo7ylqP0zMjvW"
     path = "kenya_counties.geojson"
     if not os.path.exists(path):
+        st.info("🌍 Downloading Kenya GeoJSON map...")
         response = requests.get(gdrive_url)
         if response.status_code == 200:
             with open(path, 'wb') as f:
